@@ -1,0 +1,40 @@
+---
+import BaseHead from '../../../../components/BaseHead.astro';
+import Header from '../../../../components/Header.astro';
+import Footer from '../../../../components/Footer.astro';
+import { SITE_TITLE } from '../../../../consts';
+import { AdminGuard } from '../../../../components/auth/AdminGuard';
+import { AccountLayout } from '../../../../components/account/AccountLayout';
+import { GalleryPageEditor } from '../../../../components/editors/GalleryPageEditor';
+import { getPageById } from '../../../../lib/pages/server';
+
+const pageData = await getPageById('gallery');
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={`Gallery Page Editor | ${SITE_TITLE}`} description="Manage gallery page image widgets" />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<AdminGuard client:load>
+				<AccountLayout client:load currentPath="/account/editor/pages/gallery">
+					<GalleryPageEditor client:load pageData={pageData} />
+				</AccountLayout>
+			</AdminGuard>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	main {
+		width: 100%;
+		max-width: 100%;
+		margin: 0;
+		padding: 0;
+		min-height: 60vh;
+	}
+</style>

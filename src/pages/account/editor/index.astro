@@ -1,0 +1,128 @@
+---
+import BaseHead from '../../../components/BaseHead.astro';
+import { SITE_TITLE } from '../../../consts';
+import { AdminGuard } from '../../../components/auth/AdminGuard';
+import { AccountLayout } from '../../../components/account/AccountLayout';
+import '../../../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={`Admin Dashboard | ${SITE_TITLE}`} description="Content management dashboard" />
+	</head>
+	<body>
+		<AdminGuard client:load>
+			<AccountLayout client:load currentPath="/account/editor">
+				<div class="dashboard">
+					<h1>Dashboard</h1>
+					<p class="subtitle">Welcome to the Odd Jobs admin panel.</p>
+
+					<div class="cards-grid">
+						<a href="/account/editor/skills" class="card">
+							<span class="card-icon">🔧</span>
+							<h2>Services</h2>
+							<p>Manage services and pricing</p>
+						</a>
+
+						<a href="/account/editor/projects" class="card">
+							<span class="card-icon">📁</span>
+							<h2>Projects</h2>
+							<p>Manage portfolio projects</p>
+						</a>
+
+						<a href="/account/editor/quotes" class="card">
+							<span class="card-icon">📋</span>
+							<h2>Quote Requests</h2>
+							<p>View customer inquiries</p>
+						</a>
+
+						<a href="/account/editor/pages/gallery" class="card">
+							<span class="card-icon">🖼️</span>
+							<h2>Gallery</h2>
+							<p>Manage gallery images</p>
+						</a>
+					</div>
+
+					<div class="info-box">
+						<strong>Admin Access</strong>
+						<p>Changes made here will be reflected on the live website.</p>
+					</div>
+				</div>
+			</AccountLayout>
+		</AdminGuard>
+	</body>
+</html>
+
+<style>
+	.dashboard h1 {
+		font-size: 2rem;
+		color: var(--text-primary);
+		margin-bottom: 0.25rem;
+	}
+
+	.subtitle {
+		color: var(--text-secondary);
+		margin-bottom: 2rem;
+	}
+
+	.cards-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: 1.5rem;
+		margin-bottom: 2rem;
+	}
+
+	.card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 2rem 1.5rem;
+		background: white;
+		border: 2px solid var(--border-light);
+		border-radius: var(--radius-md);
+		text-decoration: none;
+		text-align: center;
+		transition: all 0.2s ease;
+	}
+
+	.card:hover {
+		border-color: var(--accent);
+		transform: translateY(-4px);
+		box-shadow: 0 8px 20px rgba(229, 57, 53, 0.15);
+	}
+
+	.card-icon {
+		font-size: 2.5rem;
+		margin-bottom: 1rem;
+	}
+
+	.card h2 {
+		font-size: 1.25rem;
+		color: var(--text-primary);
+		margin-bottom: 0.5rem;
+	}
+
+	.card p {
+		font-size: 0.9rem;
+		color: var(--text-secondary);
+		margin: 0;
+	}
+
+	.info-box {
+		padding: 1rem 1.5rem;
+		background: #fff3e0;
+		border-left: 4px solid var(--accent);
+		border-radius: var(--radius-sm);
+	}
+
+	.info-box strong {
+		color: var(--accent-dark);
+	}
+
+	.info-box p {
+		color: var(--text-secondary);
+		margin: 0.25rem 0 0;
+		font-size: 0.9rem;
+	}
+</style>

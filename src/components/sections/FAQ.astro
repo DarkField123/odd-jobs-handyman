@@ -1,0 +1,57 @@
+---
+import FAQAccordion from '../FAQAccordion';
+import { FAQ_ITEMS } from '../../consts';
+---
+
+<section class="faq-section">
+  <div class="container">
+    <div class="section-header">
+      <h2>Frequently Asked Questions</h2>
+      <p>Got questions? We've got answers. If you don't see your question here, feel free to contact us.</p>
+    </div>
+
+    <div class="faq-container">
+      <FAQAccordion client:visible items={FAQ_ITEMS} />
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq-section {
+    padding: 5rem 0;
+    background: var(--bg-light);
+  }
+
+  .section-header {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 3rem;
+  }
+
+  .section-header h2 {
+    font-size: 2.5rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+
+  .section-header p {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .faq-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 600px) {
+    .faq-section {
+      padding: 3rem 0;
+    }
+
+    .section-header h2 {
+      font-size: 2rem;
+    }
+  }
+</style>

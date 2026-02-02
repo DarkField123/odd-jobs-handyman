@@ -1,0 +1,40 @@
+---
+import BaseHead from '../../../components/BaseHead.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import { SITE_TITLE } from '../../../consts';
+import { AdminGuard } from '../../../components/auth/AdminGuard';
+import { AccountLayout } from '../../../components/account/AccountLayout';
+import { SkillManager } from '../../../components/editors/SkillManager';
+import { getAllSkills } from '../../../lib/skills/server';
+
+const skills = await getAllSkills();
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={`Skills Management | ${SITE_TITLE}`} description="Manage skills" />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<AdminGuard client:load>
+				<AccountLayout client:load currentPath="/account/editor/skills">
+					<SkillManager client:load skills={skills} />
+				</AccountLayout>
+			</AdminGuard>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	main {
+		width: 100%;
+		max-width: 100%;
+		margin: 0;
+		padding: 0;
+		min-height: 60vh;
+	}
+</style>

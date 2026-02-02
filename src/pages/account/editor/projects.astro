@@ -1,0 +1,42 @@
+---
+import BaseHead from '../../../components/BaseHead.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import { SITE_TITLE } from '../../../consts';
+import { AdminGuard } from '../../../components/auth/AdminGuard';
+import { AccountLayout } from '../../../components/account/AccountLayout';
+import { ProjectManager } from '../../../components/editors/ProjectManager';
+import { getAllProjects } from '../../../lib/projects/server';
+import { getAllSkills } from '../../../lib/skills/server';
+
+const projects = await getAllProjects();
+const skills = await getAllSkills();
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={`Projects Management | ${SITE_TITLE}`} description="Manage projects" />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<AdminGuard client:load>
+				<AccountLayout client:load currentPath="/account/editor/projects">
+					<ProjectManager client:load projects={projects} skills={skills} />
+				</AccountLayout>
+			</AdminGuard>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	main {
+		width: 100%;
+		max-width: 100%;
+		margin: 0;
+		padding: 0;
+		min-height: 60vh;
+	}
+</style>

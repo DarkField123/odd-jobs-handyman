@@ -1,0 +1,262 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import QuoteForm from '../components/QuoteForm';
+import { SERVICES, CONTACT } from '../consts';
+
+// Get URL params
+const url = new URL(Astro.request.url);
+const preselectedService = url.searchParams.get('service') || '';
+
+// Convert services for the form
+const formServices = SERVICES.map(s => ({ id: s.id, name: s.name }));
+---
+
+<BaseLayout title="Get a Quote" description="Request a free, no-obligation quote for handyman services.">
+  <section class="page-header">
+    <div class="container">
+      <h1>Get a Free Quote</h1>
+      <p>Tell us about your project and we'll get back to you with a free estimate.</p>
+    </div>
+  </section>
+
+  <section class="quote-content">
+    <div class="container">
+      <div class="quote-grid">
+        <div class="quote-form-wrapper">
+          <QuoteForm client:load services={formServices} preselectedService={preselectedService} />
+        </div>
+
+        <aside class="quote-sidebar">
+          <div class="sidebar-card">
+            <h3>Prefer to Call?</h3>
+            <p>Speak directly with our team:</p>
+            <a href={`tel:${CONTACT.phone.replace(/\D/g, '')}`} class="phone-link">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+              {CONTACT.phone}
+            </a>
+          </div>
+
+          <div class="sidebar-card">
+            <h3>What Happens Next?</h3>
+            <ol class="steps-list">
+              <li>
+                <span class="step-number">1</span>
+                <span>We'll review your request</span>
+              </li>
+              <li>
+                <span class="step-number">2</span>
+                <span>We'll contact you within 24 hours</span>
+              </li>
+              <li>
+                <span class="step-number">3</span>
+                <span>We'll arrange a site visit if needed</span>
+              </li>
+              <li>
+                <span class="step-number">4</span>
+                <span>You'll receive a detailed quote</span>
+              </li>
+            </ol>
+          </div>
+
+          <div class="sidebar-card trust-card">
+            <h3>Why Choose Us?</h3>
+            <ul class="trust-list">
+              <li>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Free, no-obligation quotes
+              </li>
+              <li>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Fully insured
+              </li>
+              <li>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Local & reliable
+              </li>
+              <li>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Quality workmanship
+              </li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .page-header {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    padding: 4rem 0;
+    text-align: center;
+  }
+
+  .page-header h1 {
+    font-size: 2.5rem;
+    color: var(--text-white);
+    margin-bottom: 0.5rem;
+  }
+
+  .page-header p {
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+  }
+
+  .quote-content {
+    padding: 4rem 0;
+    background: var(--bg-light);
+  }
+
+  .quote-grid {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 3rem;
+    align-items: start;
+  }
+
+  .quote-form-wrapper {
+    background: var(--bg-white);
+    padding: 2.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Sidebar */
+  .quote-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .sidebar-card {
+    background: var(--bg-white);
+    padding: 1.5rem;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .sidebar-card h3 {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+  }
+
+  .sidebar-card p {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+  }
+
+  .phone-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--accent);
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .phone-link:hover {
+    color: var(--accent-dark);
+  }
+
+  .steps-list {
+    list-style: none;
+    counter-reset: steps;
+  }
+
+  .steps-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-secondary);
+  }
+
+  .steps-list li:last-child {
+    border-bottom: none;
+  }
+
+  .step-number {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: var(--text-white);
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .trust-list {
+    list-style: none;
+  }
+
+  .trust-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    color: var(--text-primary);
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .quote-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .quote-sidebar {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    .sidebar-card {
+      flex: 1;
+      min-width: 250px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .page-header {
+      padding: 3rem 0;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+    }
+
+    .quote-content {
+      padding: 2rem 0;
+    }
+
+    .quote-form-wrapper {
+      padding: 1.5rem;
+    }
+
+    .quote-sidebar {
+      flex-direction: column;
+    }
+
+    .sidebar-card {
+      min-width: auto;
+    }
+  }
+</style>

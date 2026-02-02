@@ -1,0 +1,76 @@
+---
+import ServiceCard from '../ServiceCard.astro';
+import { SERVICES } from '../../consts';
+---
+
+<section class="services-section">
+  <div class="container">
+    <div class="section-header">
+      <h2>Our Services</h2>
+      <p>Whatever the job, big or small, we've got you covered with professional handyman services.</p>
+    </div>
+
+    <div class="services-grid">
+      {SERVICES.map((service) => (
+        <ServiceCard
+          id={service.id}
+          name={service.name}
+          icon={service.icon}
+          description={service.description}
+        />
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .services-section {
+    padding: 5rem 0;
+    background: var(--bg-light);
+  }
+
+  .section-header {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 3rem;
+  }
+
+  .section-header h2 {
+    font-size: 2.5rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+
+  .section-header p {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+
+  @media (max-width: 900px) {
+    .services-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .services-section {
+      padding: 3rem 0;
+    }
+
+    .section-header h2 {
+      font-size: 2rem;
+    }
+
+    .services-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+  }
+</style>

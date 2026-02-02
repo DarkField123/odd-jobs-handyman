@@ -1,0 +1,113 @@
+---
+import PlumbingIcon from './icons/PlumbingIcon.astro';
+import ElectricalIcon from './icons/ElectricalIcon.astro';
+import CarpentryIcon from './icons/CarpentryIcon.astro';
+import PaintingIcon from './icons/PaintingIcon.astro';
+import GeneralIcon from './icons/GeneralIcon.astro';
+import AssemblyIcon from './icons/AssemblyIcon.astro';
+
+interface Props {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+}
+
+const { id, name, icon, description } = Astro.props;
+
+const iconMap: Record<string, any> = {
+  plumbing: PlumbingIcon,
+  electrical: ElectricalIcon,
+  carpentry: CarpentryIcon,
+  painting: PaintingIcon,
+  general: GeneralIcon,
+  assembly: AssemblyIcon,
+};
+
+const IconComponent = iconMap[icon] || GeneralIcon;
+---
+
+<a href={`/quote?service=${id}`} class="service-card">
+  <div class="service-icon">
+    <IconComponent size="2.5em" color="var(--accent)" />
+  </div>
+  <h3 class="service-name">{name}</h3>
+  <p class="service-description">{description}</p>
+  <span class="service-link">
+    Get a Quote
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+      <polyline points="12 5 19 12 12 19"></polyline>
+    </svg>
+  </span>
+</a>
+
+<style>
+  .service-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 1.5rem;
+    background: var(--bg-white);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-light);
+    text-decoration: none;
+    transition: all var(--transition-normal);
+  }
+
+  .service-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(229, 57, 53, 0.15);
+  }
+
+  .service-icon {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-lighter);
+    border-radius: var(--radius-full);
+    margin-bottom: 1.25rem;
+    transition: all var(--transition-normal);
+  }
+
+  .service-card:hover .service-icon {
+    background: var(--accent);
+  }
+
+  .service-card:hover .service-icon :global(svg) {
+    color: var(--text-white) !important;
+  }
+
+  .service-name {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+  }
+
+  .service-description {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    flex-grow: 1;
+  }
+
+  .service-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: gap var(--transition-fast);
+  }
+
+  .service-card:hover .service-link {
+    gap: 0.75rem;
+  }
+</style>
