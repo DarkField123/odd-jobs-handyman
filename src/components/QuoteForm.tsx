@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/firebase/client';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
+
+interface ServiceOption {
+  id: string;
+  name: string;
+}
 
 interface QuoteFormProps {
-  services: { id: string; name: string }[];
+  services: ServiceOption[];
   preselectedService?: string;
 }
 
@@ -33,7 +38,8 @@ function sanitize(input: string): string {
     .trim();
 }
 
-export default function QuoteForm({ services, preselectedService }: QuoteFormProps) {
+export default function QuoteForm({ services: initialServices, preselectedService }: QuoteFormProps) {
+  const [services, setServices] = useState<ServiceOption[]>(initialServices);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -47,12 +53,40 @@ export default function QuoteForm({ services, preselectedService }: QuoteFormPro
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState('');
 
-  // Update service if preselected changes (from URL param)
+  // Fetch services from Firestore on mount (refresh from DB)
   useEffect(() => {
-    if (preselectedService) {
-      setFormData((prev) => ({ ...prev, service: preselectedService }));
+    async function fetchServices() {
+      if (!db) return;
+      try {
+        const q = query(collection(db, 'skills'), orderBy('order', 'asc'));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const firestoreServices = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            name: doc.data().name as string,
+          }));
+          setServices(firestoreServices);
+        }
+      } catch (error) {
+        // Keep using initial services from props
+        console.warn('Using fallback services for quote form');
+      }
     }
-  }, [preselectedService]);
+    fetchServices();
+  }, []);
+
+  // Read URL param on client side (needed for static site generation)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const serviceParam = params.get('service');
+    if (serviceParam) {
+      // Verify the service ID exists in our services list
+      const validService = services.find((s) => s.id === serviceParam);
+      if (validService) {
+        setFormData((prev) => ({ ...prev, service: serviceParam }));
+      }
+    }
+  }, [services]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};

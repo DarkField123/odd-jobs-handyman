@@ -2,6 +2,7 @@
 import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import ChatWidget from '../components/ChatWidget';
 import '../styles/global.css';
 
 interface Props {
@@ -23,6 +24,7 @@ const { title, description } = Astro.props;
       <slot />
     </main>
     <Footer />
+    <ChatWidget client:idle />
   </body>
 </html>
 

@@ -25,5 +25,5 @@ if (typeof window !== 'undefined') {
   storage = getStorage(app);
 }
 
-export { db, auth, storage };
+export { app, db, auth, storage };
 export default app;

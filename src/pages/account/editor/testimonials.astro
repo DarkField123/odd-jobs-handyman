@@ -1,0 +1,22 @@
+---
+import BaseHead from '../../../components/BaseHead.astro';
+import { SITE_TITLE } from '../../../consts';
+import { AdminGuard } from '../../../components/auth/AdminGuard';
+import { AccountLayout } from '../../../components/account/AccountLayout';
+import { TestimonialManager } from '../../../components/editors/TestimonialManager';
+import '../../../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={`Testimonials | ${SITE_TITLE}`} description="Manage customer testimonials" />
+	</head>
+	<body>
+		<AdminGuard client:load>
+			<AccountLayout client:load currentPath="/account/editor/testimonials">
+				<TestimonialManager client:load />
+			</AccountLayout>
+		</AdminGuard>
+	</body>
+</html>

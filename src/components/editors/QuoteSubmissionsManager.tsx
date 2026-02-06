@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../../lib/firebase/client';
 import { collection, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { EmailReplyModal } from './EmailReplyModal';
 
 interface Submission {
   id: string;
@@ -11,14 +12,34 @@ interface Submission {
   message: string;
   status: 'new' | 'contacted' | 'quoted' | 'completed' | 'declined';
   createdAt: { seconds: number };
+  confirmationEmail?: {
+    sentAt: { seconds: number };
+    status: 'sent' | 'failed';
+    resendId?: string;
+    error?: string;
+  };
+}
+
+interface EmailReply {
+  id: string;
+  subject: string;
+  body: string;
+  sentBy: string;
+  sentByEmail: string;
+  createdAt: { seconds: number };
+  status: 'pending' | 'sent' | 'failed';
 }
 
 export default function QuoteSubmissionsManager() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [showReplyModal, setShowReplyModal] = useState(false);
+  const [replies, setReplies] = useState<EmailReply[]>([]);
 
+  // Load submissions
   useEffect(() => {
+    if (!db) return;
     const q = query(collection(db, 'submissions'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const subs = snapshot.docs.map(doc => ({
@@ -29,6 +50,29 @@ export default function QuoteSubmissionsManager() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Load replies when a submission is selected
+  useEffect(() => {
+    if (!selectedSubmission || !db) {
+      setReplies([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'submissions', selectedSubmission.id, 'emailReplies'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const replyData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as EmailReply[];
+      setReplies(replyData);
+    });
+
+    return () => unsubscribe();
+  }, [selectedSubmission?.id]);
 
   const handleStatusChange = async (id: string, newStatus: Submission['status']) => {
     try {
@@ -119,7 +163,16 @@ export default function QuoteSubmissionsManager() {
 
         {selectedSubmission && (
           <div className="submission-detail">
-            <h2>{selectedSubmission.name}</h2>
+            <div className="detail-header">
+              <h2>{selectedSubmission.name}</h2>
+              {selectedSubmission.confirmationEmail && (
+                <span className={`email-status ${selectedSubmission.confirmationEmail.status}`}>
+                  {selectedSubmission.confirmationEmail.status === 'sent'
+                    ? 'Confirmation Sent'
+                    : 'Confirmation Failed'}
+                </span>
+              )}
+            </div>
             <div className="detail-grid">
               <div className="detail-item">
                 <label>Email</label>
@@ -154,11 +207,43 @@ export default function QuoteSubmissionsManager() {
                 <option value="completed">Completed</option>
                 <option value="declined">Declined</option>
               </select>
+              <button className="btn btn-reply" onClick={() => setShowReplyModal(true)}>
+                Reply via Email
+              </button>
               <button className="btn btn-danger" onClick={() => handleDelete(selectedSubmission.id)}>
                 Delete
               </button>
             </div>
+
+            {replies.length > 0 && (
+              <div className="reply-history">
+                <h3>Email History</h3>
+                {replies.map((reply) => (
+                  <div key={reply.id} className="reply-item">
+                    <div className="reply-header">
+                      <span className="reply-subject">{reply.subject}</span>
+                      <span className={`reply-status ${reply.status}`}>{reply.status}</span>
+                    </div>
+                    <p className="reply-body">{reply.body}</p>
+                    <div className="reply-meta">
+                      Sent by {reply.sentByEmail} on {formatDate(reply.createdAt)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+        )}
+
+        {showReplyModal && selectedSubmission && (
+          <EmailReplyModal
+            submissionId={selectedSubmission.id}
+            customerName={selectedSubmission.name}
+            customerEmail={selectedSubmission.email}
+            service={selectedSubmission.service}
+            onClose={() => setShowReplyModal(false)}
+            onSent={() => {/* Replies update via onSnapshot */}}
+          />
         )}
       </div>
 
@@ -323,6 +408,94 @@ export default function QuoteSubmissionsManager() {
         }
         .btn-danger:hover {
           background: #d32f2f;
+        }
+        .btn-reply {
+          background: var(--accent);
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+        }
+        .btn-reply:hover {
+          background: var(--accent-dark);
+        }
+        .detail-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1.5rem;
+        }
+        .detail-header h2 {
+          margin: 0;
+        }
+        .email-status {
+          padding: 0.25rem 0.75rem;
+          border-radius: var(--radius-sm);
+          font-size: 0.75rem;
+          font-weight: 600;
+        }
+        .email-status.sent {
+          background: #e8f5e9;
+          color: #2e7d32;
+        }
+        .email-status.failed {
+          background: #ffebee;
+          color: #c62828;
+        }
+        .reply-history {
+          margin-top: 1.5rem;
+          padding-top: 1.5rem;
+          border-top: 1px solid var(--border-light);
+        }
+        .reply-history h3 {
+          margin: 0 0 1rem;
+          font-size: 1rem;
+          color: var(--text-secondary);
+        }
+        .reply-item {
+          background: #f9f9f9;
+          border-radius: var(--radius-sm);
+          padding: 1rem;
+          margin-bottom: 0.75rem;
+        }
+        .reply-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+        .reply-subject {
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+        .reply-status {
+          padding: 0.125rem 0.5rem;
+          border-radius: var(--radius-sm);
+          font-size: 0.7rem;
+          text-transform: uppercase;
+        }
+        .reply-status.pending {
+          background: #fff3e0;
+          color: #e65100;
+        }
+        .reply-status.sent {
+          background: #e8f5e9;
+          color: #2e7d32;
+        }
+        .reply-status.failed {
+          background: #ffebee;
+          color: #c62828;
+        }
+        .reply-body {
+          margin: 0 0 0.5rem;
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+          white-space: pre-wrap;
+        }
+        .reply-meta {
+          font-size: 0.75rem;
+          color: var(--text-light);
         }
         @media (max-width: 900px) {
           .submissions-layout {

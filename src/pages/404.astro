@@ -1,0 +1,107 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE_TITLE } from '../consts';
+---
+
+<BaseLayout title={`Page Not Found | ${SITE_TITLE}`}>
+  <section class="not-found">
+    <div class="container">
+      <div class="not-found-content">
+        <svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg" class="not-found-icon">
+          <!-- Wrench -->
+          <rect x="55" y="30" width="10" height="60" rx="2" fill="#9E9E9E" transform="rotate(-30 60 60)" />
+          <circle cx="47" cy="32" r="14" fill="none" stroke="#9E9E9E" stroke-width="8" />
+          <!-- Hammer -->
+          <rect x="120" y="25" width="10" height="65" rx="2" fill="#8D6E63" transform="rotate(30 125 58)" />
+          <rect x="110" y="18" width="30" height="22" rx="3" fill="#607D8B" transform="rotate(30 125 29)" />
+          <!-- X mark -->
+          <line x1="85" y1="45" x2="115" y2="75" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" />
+          <line x1="115" y1="45" x2="85" y2="75" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" />
+        </svg>
+
+        <h1>404</h1>
+        <p class="not-found-title">Page Not Found</p>
+        <p class="not-found-message">
+          Sorry, we couldn't find the page you're looking for. It may have been moved or no longer exists.
+        </p>
+
+        <div class="not-found-actions">
+          <a href="/" class="btn btn-primary">Go Home</a>
+          <a href="/services" class="btn btn-secondary">View Services</a>
+          <a href="/quote" class="btn btn-secondary">Get a Quote</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .not-found {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 0;
+    background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg-white) 100%);
+  }
+
+  .not-found-content {
+    text-align: center;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .not-found-icon {
+    width: 160px;
+    height: auto;
+    margin-bottom: 1.5rem;
+    opacity: 0.8;
+  }
+
+  h1 {
+    font-size: 5rem;
+    color: var(--accent);
+    margin: 0;
+    line-height: 1;
+  }
+
+  .not-found-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0.5rem 0 1rem;
+  }
+
+  .not-found-message {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 2rem;
+  }
+
+  .not-found-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  @media (max-width: 600px) {
+    h1 {
+      font-size: 4rem;
+    }
+
+    .not-found-title {
+      font-size: 1.25rem;
+    }
+
+    .not-found-actions {
+      flex-direction: column;
+    }
+
+    .not-found-actions .btn {
+      width: 100%;
+      text-align: center;
+    }
+  }
+</style>

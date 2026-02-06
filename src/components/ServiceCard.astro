@@ -11,9 +11,11 @@ interface Props {
   name: string;
   icon: string;
   description: string;
+  jobs?: string[];
 }
 
-const { id, name, icon, description } = Astro.props;
+const { id, name, icon, description, jobs = [] } = Astro.props;
+const previewJobs = jobs.slice(0, 4);
 
 const iconMap: Record<string, any> = {
   plumbing: PlumbingIcon,
@@ -27,20 +29,32 @@ const iconMap: Record<string, any> = {
 const IconComponent = iconMap[icon] || GeneralIcon;
 ---
 
-<a href={`/quote?service=${id}`} class="service-card">
+<div class="service-card">
   <div class="service-icon">
     <IconComponent size="2.5em" color="var(--accent)" />
   </div>
   <h3 class="service-name">{name}</h3>
   <p class="service-description">{description}</p>
-  <span class="service-link">
-    Get a Quote
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  {previewJobs.length > 0 && (
+    <ul class="service-jobs-preview">
+      {previewJobs.map((job: string) => (
+        <li>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          {job}
+        </li>
+      ))}
+    </ul>
+  )}
+  <a href={`/services#${id}`} class="service-view-all">
+    View all
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <line x1="5" y1="12" x2="19" y2="12"></line>
       <polyline points="12 5 19 12 12 19"></polyline>
     </svg>
-  </span>
-</a>
+  </a>
+</div>
 
 <style>
   .service-card {
@@ -52,7 +66,6 @@ const IconComponent = iconMap[icon] || GeneralIcon;
     background: var(--bg-white);
     border-radius: var(--radius-lg);
     border: 2px solid var(--border-light);
-    text-decoration: none;
     transition: all var(--transition-normal);
   }
 
@@ -94,20 +107,41 @@ const IconComponent = iconMap[icon] || GeneralIcon;
     color: var(--text-secondary);
     line-height: 1.5;
     margin-bottom: 1rem;
+  }
+
+  .service-jobs-preview {
+    list-style: none;
+    width: 100%;
+    text-align: left;
+    margin-bottom: 1.25rem;
     flex-grow: 1;
   }
 
-  .service-link {
+  .service-jobs-preview li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    padding: 0.25rem 0;
+  }
+
+  .service-jobs-preview li svg {
+    flex-shrink: 0;
+  }
+
+  .service-view-all {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     color: var(--accent);
     font-weight: 600;
     font-size: 0.9rem;
+    text-decoration: none;
     transition: gap var(--transition-fast);
   }
 
-  .service-card:hover .service-link {
+  .service-view-all:hover {
     gap: 0.75rem;
   }
 </style>

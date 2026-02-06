@@ -1,11 +1,10 @@
 ---
 import BaseHead from '../../../components/BaseHead.astro';
-import Header from '../../../components/Header.astro';
-import Footer from '../../../components/Footer.astro';
 import { SITE_TITLE } from '../../../consts';
 import { AdminGuard } from '../../../components/auth/AdminGuard';
 import { AccountLayout } from '../../../components/account/AccountLayout';
 import QuoteSubmissionsManager from '../../../components/editors/QuoteSubmissionsManager.tsx';
+import '../../../styles/global.css';
 ---
 
 <!doctype html>
@@ -14,24 +13,10 @@ import QuoteSubmissionsManager from '../../../components/editors/QuoteSubmission
 		<BaseHead title={`Quote Submissions | ${SITE_TITLE}`} description="Manage quote submissions" />
 	</head>
 	<body>
-		<Header />
-		<main>
-			<AdminGuard client:load>
-				<AccountLayout client:load currentPath="/account/editor/quotes">
-					<QuoteSubmissionsManager client:load />
-				</AccountLayout>
-			</AdminGuard>
-		</main>
-		<Footer />
+		<AdminGuard client:load>
+			<AccountLayout client:load currentPath="/account/editor/quotes">
+				<QuoteSubmissionsManager client:load />
+			</AccountLayout>
+		</AdminGuard>
 	</body>
 </html>
-
-<style>
-	main {
-		width: 100%;
-		max-width: 100%;
-		margin: 0;
-		padding: 0;
-		min-height: 60vh;
-	}
-</style>

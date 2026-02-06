@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Admin UIDs - must match AdminGuard.tsx
+    function isAdmin() {
+      return request.auth != null && request.auth.uid in ['TSJwRbSJjaQohlxB0nfJzmb0uhI2'];
+    }
+
+    // Skills/Services collection
+    match /skills/{skillId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Projects collection
+    match /projects/{projectId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Testimonials collection
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Quote submissions collection
+    match /submissions/{submissionId} {
+      // Anyone can create a submission (quote form)
+      allow create: if true;
+
+      // Only admins can read, update, delete
+      allow read, update, delete: if isAdmin();
+
+      // Email replies subcollection - admin only
+      match /emailReplies/{replyId} {
+        allow read, write: if isAdmin();
+      }
+    }
+  }
+}

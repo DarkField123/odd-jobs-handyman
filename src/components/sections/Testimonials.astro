@@ -1,0 +1,168 @@
+---
+import { TESTIMONIALS, SERVICES } from '../../consts';
+
+// Create a map of service IDs to names for displaying badges
+const serviceMap = new Map(SERVICES.map(s => [s.id, s.name]));
+
+function getServiceName(serviceId: string | undefined): string | null {
+  if (!serviceId) return null;
+  return serviceMap.get(serviceId) || null;
+}
+
+function renderStars(rating: number): string {
+  return '★'.repeat(rating) + '☆'.repeat(5 - rating);
+}
+---
+
+<section class="testimonials-section">
+  <div class="container">
+    <div class="section-header">
+      <h2>What Our Customers Say</h2>
+      <p>Don't just take our word for it - hear from some of our satisfied customers across Manchester.</p>
+    </div>
+
+    <div class="testimonials-grid">
+      {TESTIMONIALS.map((testimonial) => {
+        const serviceName = getServiceName(testimonial.service);
+        return (
+          <div class="testimonial-card">
+            <div class="quote-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+              </svg>
+            </div>
+            <p class="testimonial-text">{testimonial.text}</p>
+            <div class="testimonial-footer">
+              <div class="testimonial-rating" aria-label={`${testimonial.rating} out of 5 stars`}>
+                {renderStars(testimonial.rating)}
+              </div>
+              <div class="testimonial-author">
+                <span class="author-name">{testimonial.name}</span>
+                <span class="author-location">{testimonial.location}</span>
+              </div>
+              {serviceName && (
+                <span class="service-badge">{serviceName}</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>
+
+<style>
+  .testimonials-section {
+    padding: 5rem 0;
+    background: var(--bg-white);
+  }
+
+  .section-header {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 3rem;
+  }
+
+  .section-header h2 {
+    font-size: 2.5rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+
+  .section-header p {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .testimonial-card {
+    background: var(--bg-light);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .testimonial-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  }
+
+  .quote-icon {
+    color: var(--accent);
+    opacity: 0.2;
+    margin-bottom: 1rem;
+  }
+
+  .testimonial-text {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    flex-grow: 1;
+    margin-bottom: 1.5rem;
+  }
+
+  .testimonial-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .testimonial-rating {
+    color: #f5a623;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+  }
+
+  .testimonial-author {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .author-name {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .author-location {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  .service-badge {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--accent-lighter, #ffebee);
+    color: var(--accent);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  @media (max-width: 768px) {
+    .testimonials-section {
+      padding: 3rem 0;
+    }
+
+    .section-header h2 {
+      font-size: 2rem;
+    }
+
+    .testimonials-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

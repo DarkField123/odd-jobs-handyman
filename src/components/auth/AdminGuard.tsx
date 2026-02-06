@@ -1,7 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase/client';
+import { auth } from '../../lib/firebase/client';
+
+// Admin UIDs — must match the list in firestore.rules
+const ADMIN_UIDS = ['TSJwRbSJjaQohlxB0nfJzmb0uhI2'];
 
 interface AdminGuardProps {
   children: ReactNode;
@@ -13,26 +15,9 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-
-      if (currentUser) {
-        // Check if user is admin in Firestore
-        try {
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists() && userDoc.data()?.role === 'admin') {
-            setIsAdmin(true);
-          } else {
-            setIsAdmin(false);
-          }
-        } catch (error) {
-          console.error('Error checking admin status:', error);
-          setIsAdmin(false);
-        }
-      } else {
-        setIsAdmin(false);
-      }
-
+      setIsAdmin(currentUser ? ADMIN_UIDS.includes(currentUser.uid) : false);
       setLoading(false);
     });
 

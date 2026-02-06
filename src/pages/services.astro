@@ -1,0 +1,255 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE_TITLE, SERVICES } from '../consts';
+import PlumbingIcon from '../components/icons/PlumbingIcon.astro';
+import ElectricalIcon from '../components/icons/ElectricalIcon.astro';
+import CarpentryIcon from '../components/icons/CarpentryIcon.astro';
+import PaintingIcon from '../components/icons/PaintingIcon.astro';
+import GeneralIcon from '../components/icons/GeneralIcon.astro';
+import AssemblyIcon from '../components/icons/AssemblyIcon.astro';
+
+const iconMap: Record<string, any> = {
+  plumbing: PlumbingIcon,
+  electrical: ElectricalIcon,
+  carpentry: CarpentryIcon,
+  painting: PaintingIcon,
+  general: GeneralIcon,
+  assembly: AssemblyIcon,
+};
+---
+
+<BaseLayout title={`Our Services | ${SITE_TITLE}`}>
+  <section class="services-hero">
+    <div class="container">
+      <h1>Our Services</h1>
+      <p>From quick fixes to bigger projects, here's what we can help with. All work is carried out to a high standard with full insurance cover.</p>
+    </div>
+  </section>
+
+  <section class="services-list">
+    <div class="container">
+      {SERVICES.map((service, index) => {
+        const IconComponent = iconMap[service.icon];
+        return (
+          <div class:list={['service-block', { 'alt-bg': index % 2 === 1 }]} id={service.id}>
+            <div class="service-header">
+              <div class="service-icon-wrap">
+                <IconComponent size="2em" color="var(--accent)" />
+              </div>
+              <div>
+                <h2>{service.name}</h2>
+                <p class="service-description">{service.description}</p>
+              </div>
+            </div>
+
+            <ul class="jobs-grid">
+              {service.jobs.map((job: string) => (
+                <li>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  {job}
+                </li>
+              ))}
+            </ul>
+
+            {service.note && (
+              <div class="service-note">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <p>{service.note}</p>
+              </div>
+            )}
+
+            <a href={`/quote?service=${service.id}`} class="btn btn-primary service-cta">
+              Get a Quote for {service.name}
+            </a>
+          </div>
+        );
+      })}
+    </div>
+  </section>
+
+  <section class="services-cta">
+    <div class="container">
+      <h2>Not sure what you need?</h2>
+      <p>No problem - describe the job and we'll let you know if we can help.</p>
+      <a href="/quote" class="btn btn-primary btn-lg">Request a Free Quote</a>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .services-hero {
+    background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg-white) 100%);
+    padding: 4rem 0 3rem;
+    text-align: center;
+  }
+
+  .services-hero h1 {
+    font-size: 2.5rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+
+  .services-hero p {
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  .services-list {
+    padding: 2rem 0;
+  }
+
+  .service-block {
+    padding: 3rem 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .service-block:last-child {
+    border-bottom: none;
+  }
+
+  .service-block.alt-bg {
+    background: transparent;
+  }
+
+  .service-header {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .service-icon-wrap {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-lighter, #ffebee);
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+  }
+
+  .service-header h2 {
+    font-size: 1.75rem;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem;
+  }
+
+  .service-description {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  .jobs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem 2rem;
+    list-style: none;
+    margin-bottom: 1.5rem;
+  }
+
+  .jobs-grid li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+  }
+
+  .jobs-grid li svg {
+    flex-shrink: 0;
+  }
+
+  .service-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: #fff8e1;
+    border-left: 4px solid #ffc107;
+    border-radius: var(--radius-sm);
+    margin-bottom: 1.5rem;
+    color: #6d5e00;
+  }
+
+  .service-note svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #f9a825;
+  }
+
+  .service-note p {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .service-cta {
+    display: inline-flex;
+  }
+
+  .services-cta {
+    background: var(--bg-light);
+    padding: 4rem 0;
+    text-align: center;
+  }
+
+  .services-cta h2 {
+    font-size: 2rem;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+  }
+
+  .services-cta p {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+
+  .btn-lg {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+  }
+
+  @media (max-width: 600px) {
+    .services-hero {
+      padding: 3rem 0 2rem;
+    }
+
+    .services-hero h1 {
+      font-size: 2rem;
+    }
+
+    .service-block {
+      padding: 2rem 0;
+    }
+
+    .service-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .service-header h2 {
+      font-size: 1.5rem;
+    }
+
+    .jobs-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .services-cta {
+      padding: 3rem 0;
+    }
+  }
+</style>

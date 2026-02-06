@@ -1,5 +1,4 @@
 ---
-import { CONTACT } from '../../consts';
 ---
 
 <section class="quote-section">
@@ -43,26 +42,10 @@ import { CONTACT } from '../../consts';
       <!-- Right Side - CTA Card -->
       <div class="quote-card">
         <h3>Get a Free Quote</h3>
-        <p>Ready to get started? Give us a call or fill out our online form.</p>
-
-        <a href={`tel:${CONTACT.phone.replace(/\D/g, '')}`} class="phone-cta">
-          <div class="phone-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-            </svg>
-          </div>
-          <div class="phone-text">
-            <span class="label">Or Give Us a Call</span>
-            <span class="number">{CONTACT.phone}</span>
-          </div>
-        </a>
-
-        <div class="divider">
-          <span>or</span>
-        </div>
+        <p>Ready to get started? Fill out our online form and we'll get back to you within 24 hours.</p>
 
         <a href="/quote" class="btn btn-primary btn-block">
-          Submit Request Online
+          Request a Free Quote
         </a>
       </div>
     </div>
@@ -127,75 +110,6 @@ import { CONTACT } from '../../consts';
   .quote-card > p {
     color: var(--text-secondary);
     margin-bottom: 1.5rem;
-  }
-
-  .phone-cta {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: var(--bg-white);
-    border: 2px solid var(--accent);
-    border-radius: var(--radius-md);
-    text-decoration: none;
-    transition: all var(--transition-fast);
-  }
-
-  .phone-cta:hover {
-    background: var(--accent);
-  }
-
-  .phone-cta:hover .phone-icon,
-  .phone-cta:hover .phone-text {
-    color: var(--text-white);
-  }
-
-  .phone-icon {
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--accent-lighter);
-    border-radius: var(--radius-md);
-    color: var(--accent);
-    transition: all var(--transition-fast);
-  }
-
-  .phone-cta:hover .phone-icon {
-    background: var(--accent-dark);
-  }
-
-  .phone-text {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .phone-text .label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-  }
-
-  .phone-text .number {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--accent);
-  }
-
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin: 1.5rem 0;
-    color: var(--text-light);
-  }
-
-  .divider::before,
-  .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border-light);
   }
 
   .btn-block {
