@@ -12,6 +12,7 @@ const menuItems = [
   { href: '/account/editor/skills', label: 'Services', icon: '🔧' },
   { href: '/account/editor/projects', label: 'Projects', icon: '📁' },
   { href: '/account/editor/quotes', label: 'Quote Requests', icon: '📋' },
+  { href: '/account/editor/invoices', label: 'Invoices', icon: '🧾' },
   { href: '/account/editor/testimonials', label: 'Testimonials', icon: '⭐' },
 ];
 

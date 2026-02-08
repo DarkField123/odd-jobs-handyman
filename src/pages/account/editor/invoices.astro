@@ -1,0 +1,22 @@
+---
+import BaseHead from '../../../components/BaseHead.astro';
+import { SITE_TITLE } from '../../../consts';
+import { AdminGuard } from '../../../components/auth/AdminGuard';
+import { AccountLayout } from '../../../components/account/AccountLayout';
+import InvoicesManager from '../../../components/editors/InvoicesManager';
+import '../../../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={`Invoices | ${SITE_TITLE}`} description="Manage invoices" />
+	</head>
+	<body>
+		<AdminGuard client:load>
+			<AccountLayout client:load currentPath="/account/editor/invoices">
+				<InvoicesManager client:load />
+			</AccountLayout>
+		</AdminGuard>
+	</body>
+</html>

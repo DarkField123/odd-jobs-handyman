@@ -38,6 +38,16 @@ function sanitize(input: string): string {
     .trim();
 }
 
+// Generate quote reference: HMS + YYYYMMDD + 3-digit random number
+function generateQuoteRef(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+  return `HMS${year}${month}${day}${random}`;
+}
+
 export default function QuoteForm({ services: initialServices, preselectedService }: QuoteFormProps) {
   const [services, setServices] = useState<ServiceOption[]>(initialServices);
   const [formData, setFormData] = useState<FormData>({
@@ -132,7 +142,7 @@ export default function QuoteForm({ services: initialServices, preselectedServic
     setSubmitStatus('idle');
 
     try {
-      // Create submission document
+      // Create submission document with quote reference
       const submission = {
         name: sanitize(formData.name),
         email: sanitize(formData.email),
@@ -140,6 +150,7 @@ export default function QuoteForm({ services: initialServices, preselectedServic
         service: sanitize(formData.service),
         message: sanitize(formData.message),
         status: 'new',
+        quoteRef: generateQuoteRef(),
         createdAt: serverTimestamp(),
       };
 
