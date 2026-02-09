@@ -3,19 +3,19 @@ import BaseHead from '../../../components/BaseHead.astro';
 import { SITE_TITLE } from '../../../consts';
 import { AdminGuard } from '../../../components/auth/AdminGuard';
 import { AccountLayout } from '../../../components/account/AccountLayout';
-import FinancialDashboard from '../../../components/editors/FinancialDashboard';
+import ExpensesManager from '../../../components/editors/ExpensesManager';
 import '../../../styles/global.css';
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
-		<BaseHead title={`Dashboard | ${SITE_TITLE}`} description="Financial overview and business dashboard" />
+		<BaseHead title={`Expenses | ${SITE_TITLE}`} description="Track business expenses" />
 	</head>
 	<body>
 		<AdminGuard client:load>
-			<AccountLayout client:load currentPath="/account/editor">
-				<FinancialDashboard client:load />
+			<AccountLayout client:load currentPath="/account/editor/expenses">
+				<ExpensesManager client:load />
 			</AccountLayout>
 		</AdminGuard>
 	</body>

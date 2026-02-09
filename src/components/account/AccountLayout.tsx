@@ -13,7 +13,10 @@ const menuItems = [
   { href: '/account/editor/projects', label: 'Projects', icon: '📁' },
   { href: '/account/editor/quotes', label: 'Quote Requests', icon: '📋' },
   { href: '/account/editor/invoices', label: 'Invoices', icon: '🧾' },
+  { href: '/account/editor/expenses', label: 'Expenses', icon: '💰' },
+  { href: '/account/editor/reports', label: 'Reports', icon: '📈' },
   { href: '/account/editor/testimonials', label: 'Testimonials', icon: '⭐' },
+  { href: '/account/editor/settings', label: 'Settings', icon: '⚙️' },
 ];
 
 export function AccountLayout({ children, currentPath = '' }: AccountLayoutProps) {

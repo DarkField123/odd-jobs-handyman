@@ -117,6 +117,10 @@ export function invoiceEmailTemplate(data: {
   invoiceDate: string;
   dueDate: string;
   lineItems: Array<{ description: string; quantity: number; unitPrice: number }>;
+  subtotal: number;
+  includeVat?: boolean;
+  vatRate?: number;
+  vatAmount?: number;
   total: number;
   notes?: string;
 }): string {
@@ -196,8 +200,14 @@ export function invoiceEmailTemplate(data: {
           <table width="100%" style="border-collapse: collapse;">
             <tr>
               <td style="padding: 4px 0; color: #666;">Subtotal</td>
-              <td style="padding: 4px 0; text-align: right;">${formatCurrency(data.total)}</td>
+              <td style="padding: 4px 0; text-align: right;">${formatCurrency(data.subtotal)}</td>
             </tr>
+            ${data.includeVat ? `
+            <tr>
+              <td style="padding: 4px 0; color: #666;">VAT (${data.vatRate}%)</td>
+              <td style="padding: 4px 0; text-align: right;">${formatCurrency(data.vatAmount || 0)}</td>
+            </tr>
+            ` : ''}
             <tr style="font-size: 18px; font-weight: bold;">
               <td style="padding: 12px 0 4px; border-top: 2px solid #ddd;">Total</td>
               <td style="padding: 12px 0 4px; border-top: 2px solid #ddd; text-align: right; color: #e53935;">${formatCurrency(data.total)}</td>

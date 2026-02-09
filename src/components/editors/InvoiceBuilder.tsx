@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db, auth } from '../../lib/firebase/client';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 
 interface LineItem {
   id: string;
@@ -9,14 +9,26 @@ interface LineItem {
   unitPrice: number;
 }
 
+interface ExistingInvoice {
+  id: string;
+  invoiceNumber: string;
+  lineItems: Array<{ description: string; quantity: number; unitPrice: number }>;
+  notes: string;
+  dueDate: string;
+  includeVat?: boolean;
+  vatRate?: number;
+}
+
 interface InvoiceBuilderProps {
   submissionId: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   service: string;
+  quoteRef?: string; // Quote reference to base invoice number on
   onClose: () => void;
   onCreated: () => void;
+  existingInvoice?: ExistingInvoice; // For editing existing invoices
 }
 
 export function InvoiceBuilder({
@@ -25,18 +37,60 @@ export function InvoiceBuilder({
   customerEmail,
   customerPhone,
   service,
+  quoteRef,
   onClose,
   onCreated,
+  existingInvoice,
 }: InvoiceBuilderProps) {
-  const [lineItems, setLineItems] = useState<LineItem[]>([
-    { id: crypto.randomUUID(), description: service, quantity: 1, unitPrice: 0 },
-  ]);
-  const [notes, setNotes] = useState('');
+  const isEditing = !!existingInvoice;
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState<string | null>(null);
+
+  // Fetch next invoice number for this submission
+  useEffect(() => {
+    if (isEditing || !db || !submissionId) return;
+
+    const fetchNextNumber = async () => {
+      try {
+        const invoicesRef = collection(db!, 'invoices');
+        const q = query(
+          invoicesRef,
+          where('submissionId', '==', submissionId)
+        );
+        const snapshot = await getDocs(q);
+        const count = snapshot.size;
+
+        // Use quoteRef if available, otherwise generate a fallback
+        const base = quoteRef || `HMS-${submissionId.slice(0, 8)}`;
+        setNextInvoiceNumber(`${base}-${count + 1}`);
+      } catch (error) {
+        console.error('Error fetching invoice count:', error);
+        // Fallback to quoteRef-1 or generate a basic number
+        const base = quoteRef || `HMS-${Date.now()}`;
+        setNextInvoiceNumber(`${base}-1`);
+      }
+    };
+
+    fetchNextNumber();
+  }, [submissionId, quoteRef, isEditing]);
+
+  const [lineItems, setLineItems] = useState<LineItem[]>(() => {
+    if (existingInvoice?.lineItems) {
+      return existingInvoice.lineItems.map((item) => ({
+        id: crypto.randomUUID(),
+        ...item,
+      }));
+    }
+    return [{ id: crypto.randomUUID(), description: service, quantity: 1, unitPrice: 0 }];
+  });
+  const [notes, setNotes] = useState(existingInvoice?.notes || '');
   const [dueDate, setDueDate] = useState(() => {
+    if (existingInvoice?.dueDate) return existingInvoice.dueDate;
     const date = new Date();
     date.setDate(date.getDate() + 14); // Default 14 days
     return date.toISOString().split('T')[0];
   });
+  const [includeVat, setIncludeVat] = useState(existingInvoice?.includeVat || false);
+  const [vatRate, setVatRate] = useState(existingInvoice?.vatRate || 20);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -66,12 +120,14 @@ export function InvoiceBuilder({
     0
   );
 
-  const generateInvoiceNumber = () => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `INV-${year}${month}-${random}`;
+  // VAT calculations
+  const vatAmount = includeVat ? subtotal * (vatRate / 100) : 0;
+  const grossTotal = subtotal + vatAmount;
+
+  // Generate fallback invoice number if nextInvoiceNumber is not ready
+  const generateFallbackInvoiceNumber = () => {
+    const base = quoteRef || `HMS-${Date.now()}`;
+    return `${base}-1`;
   };
 
   const handleSave = async (isDraft: boolean) => {
@@ -80,7 +136,7 @@ export function InvoiceBuilder({
       return;
     }
 
-    if (subtotal <= 0 && !isDraft) {
+    if (grossTotal <= 0 && !isDraft) {
       setError('Invoice total must be greater than zero');
       return;
     }
@@ -97,39 +153,59 @@ export function InvoiceBuilder({
       const user = auth?.currentUser;
       if (!user) throw new Error('Not authenticated');
 
-      const invoiceNumber = generateInvoiceNumber();
-
-      // Create invoice in Firestore
-      await addDoc(collection(db, 'invoices'), {
-        invoiceNumber,
-        submissionId,
-        customerName,
-        customerEmail,
-        customerPhone,
-        lineItems: lineItems.map(({ id, ...rest }) => rest),
-        subtotal,
-        total: subtotal,
-        notes: notes.trim(),
-        dueDate,
-        status: isDraft ? 'draft' : 'pending',
-        sendEmail: !isDraft, // Only send email if not a draft
-        createdBy: user.uid,
-        createdByEmail: user.email,
-        createdAt: serverTimestamp(),
-      });
+      if (isEditing && existingInvoice) {
+        // Update existing invoice
+        await updateDoc(doc(db, 'invoices', existingInvoice.id), {
+          lineItems: lineItems.map(({ id, ...rest }) => rest),
+          subtotal,
+          includeVat,
+          vatRate: includeVat ? vatRate : null,
+          vatAmount: includeVat ? vatAmount : 0,
+          total: grossTotal,
+          notes: notes.trim(),
+          dueDate,
+          status: isDraft ? 'draft' : 'pending',
+          sendEmail: !isDraft, // Only send email if not a draft
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        // Create new invoice
+        const invoiceNumber = nextInvoiceNumber || generateFallbackInvoiceNumber();
+        await addDoc(collection(db, 'invoices'), {
+          invoiceNumber,
+          submissionId,
+          customerName,
+          customerEmail,
+          customerPhone,
+          lineItems: lineItems.map(({ id, ...rest }) => rest),
+          subtotal,
+          includeVat,
+          vatRate: includeVat ? vatRate : null,
+          vatAmount: includeVat ? vatAmount : 0,
+          total: grossTotal,
+          notes: notes.trim(),
+          dueDate,
+          status: isDraft ? 'draft' : 'pending',
+          sendEmail: !isDraft, // Only send email if not a draft
+          createdBy: user.uid,
+          createdByEmail: user.email,
+          createdAt: serverTimestamp(),
+        });
+      }
 
       onCreated();
       onClose();
     } catch (err) {
-      console.error('Error creating invoice:', err);
-      setError('Failed to create invoice. Please try again.');
+      console.error(`Error ${isEditing ? 'updating' : 'creating'} invoice:`, err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to ${isEditing ? 'update' : 'create'} invoice: ${message}`);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDownload = () => {
-    const invoiceNumber = generateInvoiceNumber();
+    const invoiceNumber = existingInvoice?.invoiceNumber || nextInvoiceNumber || generateFallbackInvoiceNumber();
     const invoiceDate = new Date().toLocaleDateString('en-GB', {
       day: 'numeric',
       month: 'long',
@@ -225,9 +301,15 @@ export function InvoiceBuilder({
             <span>Subtotal</span>
             <span>&pound;${subtotal.toFixed(2)}</span>
           </div>
+          ${includeVat ? `
+          <div class="totals-row">
+            <span>VAT (${vatRate}%)</span>
+            <span>&pound;${vatAmount.toFixed(2)}</span>
+          </div>
+          ` : ''}
           <div class="totals-row total">
             <span>Total</span>
-            <span>&pound;${subtotal.toFixed(2)}</span>
+            <span>&pound;${grossTotal.toFixed(2)}</span>
           </div>
         </div>
 
@@ -304,7 +386,7 @@ export function InvoiceBuilder({
     <div className="modal-overlay" onClick={handleBackdropClick}>
       <div className="modal-content invoice-modal">
         <div className="modal-header">
-          <h3>Create Invoice for {customerName}</h3>
+          <h3>{isEditing ? 'Edit' : 'Create'} Invoice for {customerName}</h3>
           <button className="close-btn" onClick={onClose} aria-label="Close">
             &times;
           </button>
@@ -312,14 +394,40 @@ export function InvoiceBuilder({
 
         <div className="modal-body">
           <div className="invoice-meta">
-            <div className="form-group">
-              <label htmlFor="due-date">Due Date</label>
-              <input
-                id="due-date"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
+            <div className="meta-row">
+              <div className="form-group">
+                <label htmlFor="due-date">Due Date</label>
+                <input
+                  id="due-date"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+              <div className="form-group vat-toggle">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={includeVat}
+                    onChange={(e) => setIncludeVat(e.target.checked)}
+                  />
+                  <span>Include VAT</span>
+                </label>
+              </div>
+              {includeVat && (
+                <div className="form-group">
+                  <label htmlFor="vat-rate">VAT Rate</label>
+                  <select
+                    id="vat-rate"
+                    value={vatRate}
+                    onChange={(e) => setVatRate(Number(e.target.value))}
+                  >
+                    <option value={20}>20% (Standard)</option>
+                    <option value={5}>5% (Reduced)</option>
+                    <option value={0}>0% (Zero-rated)</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
@@ -393,9 +501,15 @@ export function InvoiceBuilder({
                 <span>Subtotal</span>
                 <span>&pound;{subtotal.toFixed(2)}</span>
               </div>
+              {includeVat && (
+                <div className="total-row vat-row">
+                  <span>VAT ({vatRate}%)</span>
+                  <span>&pound;{vatAmount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="total-row grand-total">
                 <span>Total</span>
-                <span>&pound;{subtotal.toFixed(2)}</span>
+                <span>&pound;{grossTotal.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -434,14 +548,14 @@ export function InvoiceBuilder({
             onClick={() => handleSave(true)}
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Save as Draft'}
+            {saving ? 'Saving...' : (isEditing ? 'Update Draft' : 'Save as Draft')}
           </button>
           <button
             className="btn btn-primary"
             onClick={() => handleSave(false)}
-            disabled={saving || subtotal <= 0}
+            disabled={saving || grossTotal <= 0}
           >
-            {saving ? 'Creating...' : 'Create & Send'}
+            {saving ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update & Send' : 'Create & Send')}
           </button>
         </div>
       </div>
@@ -514,6 +628,53 @@ export function InvoiceBuilder({
 
         .invoice-meta {
           margin-bottom: 1.5rem;
+        }
+
+        .meta-row {
+          display: flex;
+          gap: 1.5rem;
+          align-items: flex-end;
+          flex-wrap: wrap;
+        }
+
+        .vat-toggle {
+          display: flex;
+          align-items: center;
+        }
+
+        .vat-toggle .checkbox-label {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          cursor: pointer;
+          font-weight: 500;
+          padding: 0.5rem 0;
+        }
+
+        .vat-toggle .checkbox-label input[type="checkbox"] {
+          width: 18px;
+          height: 18px;
+          cursor: pointer;
+        }
+
+        .form-group select {
+          padding: 0.75rem;
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          font-size: 1rem;
+          font-family: inherit;
+          background: white;
+          cursor: pointer;
+        }
+
+        .form-group select:focus {
+          outline: none;
+          border-color: var(--accent);
+        }
+
+        .vat-row {
+          color: #666;
+          font-size: 0.9rem;
         }
 
         .form-group {

@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react';
 import { db } from '../../lib/firebase/client';
-import { collection, onSnapshot, query, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, updateDoc, doc, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { InvoiceBuilder } from './InvoiceBuilder';
 
 interface LineItem {
   description: string;
   quantity: number;
   unitPrice: number;
+}
+
+interface Payment {
+  id: string;
+  amount: number;
+  date: string;
+  method: 'cash' | 'bank' | 'card' | 'cheque';
+  reference?: string;
+  note?: string;
 }
 
 interface Invoice {
@@ -25,13 +35,35 @@ interface Invoice {
   emailStatus?: {
     status: 'sent' | 'failed';
   };
+  // VAT fields
+  includeVat?: boolean;
+  vatRate?: number;
+  vatAmount?: number;
+  // Payment tracking
+  payments?: Payment[];
+  amountPaid?: number;
+  // Revision tracking
+  originalInvoiceId?: string;
+  revisionNumber?: number;
+  revisionReason?: string;
+  revisionDate?: { seconds: number };
 }
 
 export default function InvoicesManager() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [yearFilter, setYearFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [showRevisionModal, setShowRevisionModal] = useState(false);
+  const [revisionReason, setRevisionReason] = useState('');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank' | 'card' | 'cheque'>('bank');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
 
   useEffect(() => {
     if (!db) return;
@@ -42,9 +74,22 @@ export default function InvoicesManager() {
         ...doc.data(),
       })) as Invoice[];
       setInvoices(data);
+    }, (error) => {
+      console.error('Error fetching invoices:', error);
+      alert(`Error loading invoices: ${error.message}`);
     });
     return () => unsubscribe();
   }, []);
+
+  // Keep selectedInvoice in sync with invoices data
+  useEffect(() => {
+    if (selectedInvoice) {
+      const updated = invoices.find(inv => inv.id === selectedInvoice.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedInvoice)) {
+        setSelectedInvoice(updated);
+      }
+    }
+  }, [invoices]);
 
   // Get unique years from invoices
   const years = [...new Set(invoices.map((inv) => {
@@ -60,6 +105,13 @@ export default function InvoicesManager() {
         ? new Date(inv.createdAt.seconds * 1000).getFullYear()
         : null;
       if (year !== parseInt(yearFilter)) return false;
+    }
+    // Search filter - check name or invoice number
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      const matchesName = inv.customerName.toLowerCase().includes(query);
+      const matchesNumber = inv.invoiceNumber.toLowerCase().includes(query);
+      if (!matchesName && !matchesNumber) return false;
     }
     return true;
   });
@@ -99,6 +151,120 @@ export default function InvoicesManager() {
     } catch (error) {
       console.error('Error sending invoice:', error);
     }
+  };
+
+  const handleCreateRevision = async () => {
+    if (!selectedInvoice || !revisionReason.trim()) return;
+
+    try {
+      // Count existing revisions for this invoice chain
+      const originalId = selectedInvoice.originalInvoiceId || selectedInvoice.id;
+      const existingRevisions = invoices.filter(
+        inv => inv.originalInvoiceId === originalId || inv.id === originalId
+      );
+      const newRevisionNumber = existingRevisions.length;
+
+      // Generate new invoice number with revision suffix
+      const baseNumber = selectedInvoice.invoiceNumber.replace(/-R\d+$/, '');
+      const newInvoiceNumber = `${baseNumber}-R${newRevisionNumber}`;
+
+      // Create the revision invoice
+      await addDoc(collection(db, 'invoices'), {
+        invoiceNumber: newInvoiceNumber,
+        submissionId: selectedInvoice.submissionId,
+        customerName: selectedInvoice.customerName,
+        customerEmail: selectedInvoice.customerEmail,
+        customerPhone: selectedInvoice.customerPhone,
+        lineItems: selectedInvoice.lineItems,
+        subtotal: selectedInvoice.subtotal,
+        total: selectedInvoice.total,
+        notes: selectedInvoice.notes,
+        dueDate: selectedInvoice.dueDate,
+        status: 'draft', // Revisions start as draft
+        originalInvoiceId: originalId,
+        revisionNumber: newRevisionNumber,
+        revisionReason: revisionReason.trim(),
+        revisionDate: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      });
+
+      setShowRevisionModal(false);
+      setRevisionReason('');
+      setSelectedInvoice(null);
+    } catch (error) {
+      console.error('Error creating revision:', error);
+      alert('Failed to create revision. Please try again.');
+    }
+  };
+
+  const handleDeleteInvoice = async (invoice: Invoice) => {
+    if (invoice.status === 'paid') {
+      alert('Paid invoices cannot be deleted.');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete invoice ${invoice.invoiceNumber}? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'invoices', invoice.id));
+      setSelectedInvoice(null);
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      alert('Failed to delete invoice. Please try again.');
+    }
+  };
+
+  const handleRecordPayment = async () => {
+    if (!selectedInvoice || !paymentAmount) return;
+
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid payment amount');
+      return;
+    }
+
+    try {
+      const existingPayments = selectedInvoice.payments || [];
+      const newPayment: Payment = {
+        id: crypto.randomUUID(),
+        amount,
+        date: paymentDate,
+        method: paymentMethod,
+        reference: paymentReference.trim() || undefined,
+        note: paymentNote.trim() || undefined,
+      };
+
+      const updatedPayments = [...existingPayments, newPayment];
+      const newAmountPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+      const amountDue = selectedInvoice.total - newAmountPaid;
+
+      // Auto-update status to paid if fully paid
+      const newStatus = amountDue <= 0 ? 'paid' : selectedInvoice.status;
+
+      await updateDoc(doc(db, 'invoices', selectedInvoice.id), {
+        payments: updatedPayments,
+        amountPaid: newAmountPaid,
+        status: newStatus,
+      });
+
+      // Reset form
+      setShowPaymentModal(false);
+      setPaymentAmount('');
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+      setPaymentMethod('bank');
+      setPaymentReference('');
+      setPaymentNote('');
+    } catch (error) {
+      console.error('Error recording payment:', error);
+      alert('Failed to record payment. Please try again.');
+    }
+  };
+
+  const getAmountDue = (invoice: Invoice) => {
+    const paid = invoice.amountPaid || 0;
+    return invoice.total - paid;
   };
 
   const exportToCSV = () => {
@@ -420,6 +586,16 @@ export default function InvoicesManager() {
         </div>
 
         <div className="filters">
+          <div className="filter-group search-group">
+            <label>Search</label>
+            <input
+              type="text"
+              placeholder="Search by name or invoice #..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+          </div>
           <div className="filter-group">
             <label>Status</label>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -487,9 +663,19 @@ export default function InvoicesManager() {
           <div className="invoice-detail">
             <div className="detail-header">
               <h2>{selectedInvoice.invoiceNumber}</h2>
-              <button className="btn btn-print" onClick={() => printSingleInvoice(selectedInvoice)}>
-                Print Invoice
-              </button>
+              <div className="header-actions">
+                <button className="btn btn-print" onClick={() => printSingleInvoice(selectedInvoice)}>
+                  Print Invoice
+                </button>
+                {selectedInvoice.status !== 'paid' && (
+                  <button
+                    className="btn btn-delete"
+                    onClick={() => handleDeleteInvoice(selectedInvoice)}
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="detail-grid">
@@ -527,14 +713,91 @@ export default function InvoicesManager() {
               </div>
             </div>
 
+            {/* Payment Summary */}
+            {selectedInvoice.status !== 'draft' && (
+              <div className="payment-summary">
+                <div className="payment-amounts">
+                  <div className="amount-item">
+                    <span className="amount-label">Invoice Total</span>
+                    <span className="amount-value">&pound;{selectedInvoice.total.toFixed(2)}</span>
+                  </div>
+                  <div className="amount-item paid">
+                    <span className="amount-label">Amount Paid</span>
+                    <span className="amount-value">&pound;{(selectedInvoice.amountPaid || 0).toFixed(2)}</span>
+                  </div>
+                  <div className={`amount-item due ${getAmountDue(selectedInvoice) > 0 ? 'outstanding' : 'settled'}`}>
+                    <span className="amount-label">Amount Due</span>
+                    <span className="amount-value">&pound;{getAmountDue(selectedInvoice).toFixed(2)}</span>
+                  </div>
+                </div>
+                {getAmountDue(selectedInvoice) > 0 && (
+                  <button
+                    className="btn btn-payment"
+                    onClick={() => setShowPaymentModal(true)}
+                  >
+                    Record Payment
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Payment History */}
+            {selectedInvoice.payments && selectedInvoice.payments.length > 0 && (
+              <div className="payment-history">
+                <h3>Payment History</h3>
+                {selectedInvoice.payments.map((payment) => (
+                  <div key={payment.id} className="payment-item">
+                    <div className="payment-main">
+                      <span className="payment-amount">&pound;{payment.amount.toFixed(2)}</span>
+                      <span className="payment-method">{payment.method}</span>
+                    </div>
+                    <div className="payment-details">
+                      <span className="payment-date">{new Date(payment.date).toLocaleDateString('en-GB')}</span>
+                      {payment.reference && <span className="payment-ref">Ref: {payment.reference}</span>}
+                    </div>
+                    {payment.note && <div className="payment-note">{payment.note}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {selectedInvoice.status === 'draft' && (
               <div className="draft-actions">
+                <button
+                  className="btn btn-edit"
+                  onClick={() => setEditingInvoice(selectedInvoice)}
+                >
+                  Edit Invoice
+                </button>
                 <button
                   className="btn btn-send"
                   onClick={() => handleSendInvoice(selectedInvoice.id)}
                 >
                   Send Invoice to Customer
                 </button>
+              </div>
+            )}
+
+            {(selectedInvoice.status === 'paid' || selectedInvoice.status === 'overdue') && (
+              <div className="revision-actions">
+                <p className="revision-note">This invoice is finalised. To make changes, create a revision.</p>
+                <button
+                  className="btn btn-revision"
+                  onClick={() => setShowRevisionModal(true)}
+                >
+                  Create Revision
+                </button>
+              </div>
+            )}
+
+            {selectedInvoice.revisionNumber && (
+              <div className="revision-info">
+                <h4>Revision Details</h4>
+                <p><strong>Revision:</strong> #{selectedInvoice.revisionNumber}</p>
+                <p><strong>Reason:</strong> {selectedInvoice.revisionReason}</p>
+                {selectedInvoice.revisionDate && (
+                  <p><strong>Date:</strong> {formatDate(selectedInvoice.revisionDate)}</p>
+                )}
               </div>
             )}
 
@@ -641,12 +904,27 @@ export default function InvoicesManager() {
           text-transform: uppercase;
         }
 
-        .filter-group select {
+        .filter-group select,
+        .filter-group input {
           padding: 0.5rem 1rem;
           border: 1px solid var(--border-light);
           border-radius: var(--radius-sm);
           font-size: 0.9rem;
           min-width: 150px;
+        }
+
+        .search-group {
+          flex: 1;
+          max-width: 300px;
+        }
+
+        .search-input {
+          width: 100%;
+        }
+
+        .search-input:focus {
+          outline: none;
+          border-color: #9c27b0;
         }
 
         .summary-cards {
@@ -778,6 +1056,24 @@ export default function InvoicesManager() {
           padding: 1rem;
           margin-bottom: 1.5rem;
           text-align: center;
+          display: flex;
+          gap: 0.75rem;
+          justify-content: center;
+        }
+
+        .btn-edit {
+          background: white;
+          color: #9c27b0;
+          border: 1px solid #9c27b0;
+          padding: 0.75rem 1.5rem;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          font-size: 0.95rem;
+          font-weight: 500;
+        }
+
+        .btn-edit:hover {
+          background: #f3e5f5;
         }
 
         .btn-send {
@@ -793,6 +1089,177 @@ export default function InvoicesManager() {
 
         .btn-send:hover {
           background: #7b1fa2;
+        }
+
+        .revision-actions {
+          background: #fff3e0;
+          border: 1px dashed #ff9800;
+          border-radius: var(--radius-md);
+          padding: 1rem;
+          margin-bottom: 1.5rem;
+          text-align: center;
+        }
+
+        .revision-note {
+          margin: 0 0 0.75rem;
+          font-size: 0.9rem;
+          color: #e65100;
+        }
+
+        .btn-revision {
+          background: #ff9800;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          font-size: 0.95rem;
+          font-weight: 500;
+        }
+
+        .btn-revision:hover {
+          background: #f57c00;
+        }
+
+        .revision-info {
+          background: #e3f2fd;
+          border: 1px solid #1976d2;
+          border-radius: var(--radius-md);
+          padding: 1rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .revision-info h4 {
+          margin: 0 0 0.5rem;
+          color: #1565c0;
+          font-size: 0.9rem;
+        }
+
+        .revision-info p {
+          margin: 0.25rem 0;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .revision-modal {
+          background: white;
+          border-radius: var(--radius-lg, 12px);
+          width: 90%;
+          max-width: 500px;
+          max-height: 90vh;
+          overflow-y: auto;
+        }
+
+        .revision-modal .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1.25rem 1.5rem;
+          border-bottom: 1px solid var(--border-light);
+        }
+
+        .revision-modal .modal-header h3 {
+          margin: 0;
+          color: var(--text-primary);
+        }
+
+        .revision-modal .close-btn {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
+          color: var(--text-light);
+          line-height: 1;
+        }
+
+        .revision-modal .modal-body {
+          padding: 1.5rem;
+        }
+
+        .revision-modal .revision-info-text {
+          margin: 0 0 1rem;
+          color: var(--text-secondary);
+        }
+
+        .revision-modal .form-group {
+          margin-bottom: 1rem;
+        }
+
+        .revision-modal .form-group label {
+          display: block;
+          font-size: 0.85rem;
+          font-weight: 500;
+          color: var(--text-secondary);
+          margin-bottom: 0.375rem;
+        }
+
+        .revision-modal .form-group textarea {
+          width: 100%;
+          padding: 0.625rem 0.875rem;
+          border: 1px solid var(--border-light);
+          border-radius: var(--radius-sm);
+          font-size: 0.95rem;
+          font-family: inherit;
+          resize: vertical;
+        }
+
+        .revision-modal .form-group textarea:focus {
+          outline: none;
+          border-color: var(--accent);
+        }
+
+        .revision-modal .revision-note-text {
+          margin: 0;
+          font-size: 0.85rem;
+          color: var(--text-light);
+          font-style: italic;
+        }
+
+        .revision-modal .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 0.75rem;
+          padding: 1rem 1.5rem;
+          border-top: 1px solid var(--border-light);
+        }
+
+        .revision-modal .btn {
+          padding: 0.625rem 1.25rem;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          font-size: 0.95rem;
+          font-weight: 500;
+        }
+
+        .revision-modal .btn-secondary {
+          background: white;
+          border: 1px solid var(--border-light);
+          color: var(--text-secondary);
+        }
+
+        .revision-modal .btn-primary {
+          background: var(--accent);
+          border: none;
+          color: white;
+        }
+
+        .revision-modal .btn-primary:hover {
+          background: var(--accent-dark);
+        }
+
+        .revision-modal .btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .invoice-customer {
@@ -842,6 +1309,24 @@ export default function InvoicesManager() {
 
         .btn-print:hover {
           background: #7b1fa2;
+        }
+
+        .header-actions {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .btn-delete {
+          background: white;
+          color: #c62828;
+          border: 1px solid #c62828;
+          padding: 0.5rem 1rem;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+        }
+
+        .btn-delete:hover {
+          background: #ffebee;
         }
 
         .detail-grid {
@@ -920,6 +1405,251 @@ export default function InvoicesManager() {
           margin: 0;
         }
 
+        /* Payment Summary */
+        .payment-summary {
+          background: #e3f2fd;
+          border: 1px solid #1976d2;
+          border-radius: var(--radius-md);
+          padding: 1rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .payment-amounts {
+          display: flex;
+          gap: 1.5rem;
+          margin-bottom: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .amount-item {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .amount-label {
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+          text-transform: uppercase;
+        }
+
+        .amount-value {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        .amount-item.paid .amount-value {
+          color: #2e7d32;
+        }
+
+        .amount-item.outstanding .amount-value {
+          color: #e65100;
+        }
+
+        .amount-item.settled .amount-value {
+          color: #2e7d32;
+        }
+
+        .btn-payment {
+          background: #1976d2;
+          color: white;
+          border: none;
+          padding: 0.625rem 1.25rem;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          font-weight: 500;
+        }
+
+        .btn-payment:hover {
+          background: #1565c0;
+        }
+
+        /* Payment History */
+        .payment-history {
+          margin-bottom: 1.5rem;
+        }
+
+        .payment-history h3 {
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+          margin-bottom: 0.75rem;
+        }
+
+        .payment-item {
+          background: #e8f5e9;
+          border-radius: var(--radius-sm);
+          padding: 0.75rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .payment-main {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.25rem;
+        }
+
+        .payment-amount {
+          font-weight: 700;
+          color: #2e7d32;
+        }
+
+        .payment-method {
+          background: #c8e6c9;
+          padding: 0.125rem 0.5rem;
+          border-radius: var(--radius-sm);
+          font-size: 0.75rem;
+          text-transform: capitalize;
+        }
+
+        .payment-details {
+          display: flex;
+          gap: 1rem;
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+        }
+
+        .payment-note {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+          margin-top: 0.25rem;
+          font-style: italic;
+        }
+
+        /* Payment Modal */
+        .payment-modal {
+          background: white;
+          border-radius: var(--radius-lg, 12px);
+          width: 90%;
+          max-width: 450px;
+          max-height: 90vh;
+          overflow-y: auto;
+        }
+
+        .payment-modal .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1.25rem 1.5rem;
+          border-bottom: 1px solid var(--border-light);
+        }
+
+        .payment-modal .modal-header h3 {
+          margin: 0;
+          color: var(--text-primary);
+        }
+
+        .payment-modal .close-btn {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
+          color: var(--text-light);
+          line-height: 1;
+        }
+
+        .payment-modal .modal-body {
+          padding: 1.5rem;
+        }
+
+        .payment-info-text {
+          margin: 0 0 0.5rem;
+          color: var(--text-secondary);
+        }
+
+        .payment-due-text {
+          margin: 0 0 1.5rem;
+          font-size: 1.1rem;
+        }
+
+        .payment-modal .form-group {
+          margin-bottom: 1rem;
+        }
+
+        .payment-modal .form-group label {
+          display: block;
+          font-size: 0.85rem;
+          font-weight: 500;
+          color: var(--text-secondary);
+          margin-bottom: 0.375rem;
+        }
+
+        .payment-modal .form-group input,
+        .payment-modal .form-group select {
+          width: 100%;
+          padding: 0.625rem 0.875rem;
+          border: 1px solid var(--border-light);
+          border-radius: var(--radius-sm);
+          font-size: 0.95rem;
+          font-family: inherit;
+        }
+
+        .payment-modal .form-group input:focus,
+        .payment-modal .form-group select:focus {
+          outline: none;
+          border-color: #1976d2;
+        }
+
+        .payment-modal .input-with-prefix {
+          position: relative;
+        }
+
+        .payment-modal .input-with-prefix .prefix {
+          position: absolute;
+          left: 0.75rem;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #666;
+        }
+
+        .payment-modal .input-with-prefix input {
+          padding-left: 1.75rem;
+        }
+
+        .payment-modal .form-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+        }
+
+        .payment-modal .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 0.75rem;
+          padding: 1rem 1.5rem;
+          border-top: 1px solid var(--border-light);
+        }
+
+        .payment-modal .btn {
+          padding: 0.625rem 1.25rem;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          font-size: 0.95rem;
+          font-weight: 500;
+        }
+
+        .payment-modal .btn-secondary {
+          background: white;
+          border: 1px solid var(--border-light);
+          color: var(--text-secondary);
+        }
+
+        .payment-modal .btn-primary {
+          background: #1976d2;
+          border: none;
+          color: white;
+        }
+
+        .payment-modal .btn-primary:hover {
+          background: #1565c0;
+        }
+
+        .payment-modal .btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
         @media (max-width: 1024px) {
           .invoices-layout {
             grid-template-columns: 1fr;
@@ -950,6 +1680,154 @@ export default function InvoicesManager() {
           }
         }
       `}</style>
+
+      {editingInvoice && (
+        <InvoiceBuilder
+          submissionId={editingInvoice.submissionId}
+          customerName={editingInvoice.customerName}
+          customerEmail={editingInvoice.customerEmail}
+          customerPhone={editingInvoice.customerPhone}
+          service=""
+          onClose={() => setEditingInvoice(null)}
+          onCreated={() => setEditingInvoice(null)}
+          existingInvoice={{
+            id: editingInvoice.id,
+            invoiceNumber: editingInvoice.invoiceNumber,
+            lineItems: editingInvoice.lineItems,
+            notes: editingInvoice.notes,
+            dueDate: editingInvoice.dueDate,
+          }}
+        />
+      )}
+
+      {showRevisionModal && selectedInvoice && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowRevisionModal(false)}>
+          <div className="revision-modal">
+            <div className="modal-header">
+              <h3>Create Invoice Revision</h3>
+              <button className="close-btn" onClick={() => setShowRevisionModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p className="revision-info-text">
+                Creating a revision of invoice <strong>{selectedInvoice.invoiceNumber}</strong>
+              </p>
+              <div className="form-group">
+                <label>Reason for Revision *</label>
+                <textarea
+                  value={revisionReason}
+                  onChange={(e) => setRevisionReason(e.target.value)}
+                  placeholder="e.g. Additional work requested, Price adjustment, Scope change..."
+                  rows={4}
+                  required
+                />
+              </div>
+              <p className="revision-note-text">
+                A new draft invoice will be created with all the details from the original.
+                You can edit the new invoice before sending it to the customer.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowRevisionModal(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleCreateRevision}
+                disabled={!revisionReason.trim()}
+              >
+                Create Revision
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPaymentModal && selectedInvoice && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowPaymentModal(false)}>
+          <div className="payment-modal">
+            <div className="modal-header">
+              <h3>Record Payment</h3>
+              <button className="close-btn" onClick={() => setShowPaymentModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p className="payment-info-text">
+                Recording payment for invoice <strong>{selectedInvoice.invoiceNumber}</strong>
+              </p>
+              <p className="payment-due-text">
+                Amount due: <strong>&pound;{getAmountDue(selectedInvoice).toFixed(2)}</strong>
+              </p>
+              <div className="form-group">
+                <label>Amount *</label>
+                <div className="input-with-prefix">
+                  <span className="prefix">&pound;</span>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Date *</label>
+                  <input
+                    type="date"
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Method *</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'bank' | 'card' | 'cheque')}
+                  >
+                    <option value="bank">Bank Transfer</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="cheque">Cheque</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Reference (optional)</label>
+                <input
+                  type="text"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  placeholder="e.g. Bank reference, cheque number"
+                />
+              </div>
+              <div className="form-group">
+                <label>Note (optional)</label>
+                <input
+                  type="text"
+                  value={paymentNote}
+                  onChange={(e) => setPaymentNote(e.target.value)}
+                  placeholder="Any additional notes"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowPaymentModal(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleRecordPayment}
+                disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+              >
+                Record Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

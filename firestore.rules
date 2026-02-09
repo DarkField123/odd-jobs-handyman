@@ -42,5 +42,21 @@ service cloud.firestore {
     match /invoices/{invoiceId} {
       allow read, write: if isAdmin();
     }
+
+    // Expenses collection - admin only
+    match /expenses/{expenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Business settings - admin only
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Quote submissions alternative path
+    match /quoteSubmissions/{submissionId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
   }
 }

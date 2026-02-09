@@ -25,11 +25,12 @@ export async function sendEmail(params: SendEmailParams): Promise<{ id: string }
   const client = getResendClient();
 
   const { data, error } = await client.emails.send({
-    from: params.from || 'Odd Jobs <noreply@oddjobs.com>',
+    // Use resend.dev for testing (change to your verified domain for production)
+    from: params.from || 'Odd Jobs <onboarding@resend.dev>',
     to: params.to,
     subject: params.subject,
     html: params.html,
-    replyTo: params.replyTo || 'info@oddjobs.com',
+    replyTo: params.replyTo,
   });
 
   if (error) {
