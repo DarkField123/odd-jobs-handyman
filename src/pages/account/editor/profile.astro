@@ -1,0 +1,22 @@
+---
+import BaseHead from '../../../components/BaseHead.astro';
+import { SITE_TITLE } from '../../../consts';
+import { AdminGuard } from '../../../components/auth/AdminGuard';
+import { AccountLayout } from '../../../components/account/AccountLayout';
+import ProfileManager from '../../../components/editors/ProfileManager';
+import '../../../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={`Profile | ${SITE_TITLE}`} description="Account profile and password management" />
+	</head>
+	<body>
+		<AdminGuard client:load>
+			<AccountLayout client:load currentPath="/account/editor/profile">
+				<ProfileManager client:load />
+			</AccountLayout>
+		</AdminGuard>
+	</body>
+</html>
